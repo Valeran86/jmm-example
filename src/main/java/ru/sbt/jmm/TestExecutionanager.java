@@ -10,7 +10,7 @@ public class TestExecutionanager {
             final int numberTask = i;
             tasks[i]=()->heavyCalc(numberTask);
         }
-        ExecutionManager executionManager=new ExecutionManagerImpl(3);
+        ExecutionManager executionManager=new ExecutionManagerImplAtomic(3);
         Runnable callback=()-> System.out.println("CALLBACK");
         Context context = executionManager.execute(callback, tasks);
 

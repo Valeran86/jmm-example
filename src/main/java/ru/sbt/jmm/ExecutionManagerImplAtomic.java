@@ -3,15 +3,17 @@ package ru.sbt.jmm;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class ExecutionManagerImpl implements ExecutionManager {
-    private volatile int completedTaskCount=0;
-    private volatile int failedTaskCount=0;
-    private volatile int interruptedTaskCount=0;
-    private volatile boolean isInterrupt=false;
+public class ExecutionManagerImplAtomic implements ExecutionManager {
+    private AtomicInteger completedTaskCount = new AtomicInteger(0);
+    private AtomicInteger failedTaskCount = new AtomicInteger(0);
+    private AtomicInteger interruptedTaskCount= new AtomicInteger(0);
+    private AtomicBoolean isInterrupt = new AtomicBoolean(false);
     private final int countThread;
 
-    ExecutionManagerImpl(int countThread){
+    ExecutionManagerImplAtomic(int countThread){
         this.countThread=countThread;
     }
 
@@ -22,24 +24,24 @@ public class ExecutionManagerImpl implements ExecutionManager {
 
         for(Runnable task:tasks){
             Runnable runnable=()-> {
-                if (isInterrupt) {
-                    interruptedTaskCount++;
+                if (isInterrupt.get()) {
+                    interruptedTaskCount.getAndIncrement();
                 }else {
                     try {
                         task.run();
-                        completedTaskCount++;
+                        completedTaskCount.getAndIncrement();
                     } catch (Exception e) {
-                        failedTaskCount++;
+                        failedTaskCount.getAndIncrement();
                     }
                 }
-                if(countTasks==(interruptedTaskCount+completedTaskCount+failedTaskCount)){
+                if(countTasks==(interruptedTaskCount.get()+completedTaskCount.get()+failedTaskCount.get())){
                     executorService.shutdown();
                     callback.run();
                 }
             };
             executorService.submit(runnable);
         }
-
+//Возвращаемый объект Context.
         return new Context(){
 
             /**
@@ -47,7 +49,7 @@ public class ExecutionManagerImpl implements ExecutionManager {
              */
             @Override
             public int getCompletedTaskCount() {
-                return completedTaskCount;
+                return completedTaskCount.get();
             }
 
             /**
@@ -55,7 +57,7 @@ public class ExecutionManagerImpl implements ExecutionManager {
              */
             @Override
             public int getFailedTaskCount() {
-                return failedTaskCount;
+                return failedTaskCount.get();
             }
 
             /**
@@ -63,7 +65,7 @@ public class ExecutionManagerImpl implements ExecutionManager {
              */
             @Override
             public int getInterruptedTaskCount() {
-                return interruptedTaskCount;
+                return interruptedTaskCount.get();
             }
 
             /**
@@ -71,7 +73,7 @@ public class ExecutionManagerImpl implements ExecutionManager {
              */
             @Override
             public void interrupt() {
-                isInterrupt=true;
+                isInterrupt.set(true);
             }
 
             /**
